@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Platform,
+  ScrollView,
 } from 'react-native';
 import Pdf from 'react-native-pdf';
 import Share from 'react-native-share';
@@ -85,8 +86,29 @@ export const EditorScreen: React.FC<EditorScreenProps> = ({
         }
       }
       setSignaturePosition(initialDraft.signaturePosition);
-      setDocumentName(initialDraft.documentUri || 'Draft Document');
-      if (initialDraft.templateId) {
+      setDocumentName(initialDraft.documentName || initialDraft.documentUri || 'Draft Document');
+      
+      // Restore PDF from cached local URI
+      if (initialDraft.documentUri) {
+        setUploadedFileUri(initialDraft.documentUri);
+        setIsLoadingPdf(true);
+        pdfService.readFileAsBytes(initialDraft.documentUri)
+          .then(bytes => {
+            setPdfBytes(bytes);
+            return pdfService.getPdfInfo(bytes);
+          })
+          .then(pageInfo => {
+            setPdfTotalPages(pageInfo.length);
+            setCurrentPdfPage(1);
+            setEditorMode('pdf');
+            setIsLoadingPdf(false);
+          })
+          .catch(err => {
+            console.error("Failed to load draft PDF", err);
+            setIsLoadingPdf(false);
+            Alert.alert("Draft Error", "Could not load the drafted PDF file.");
+          });
+      } else if (initialDraft.templateId) {
         setEditorMode('pdf');
       }
     } else {
@@ -194,7 +216,8 @@ export const EditorScreen: React.FC<EditorScreenProps> = ({
         : null;
 
       await cacheService.saveDraft({
-        documentUri: documentName,
+        documentUri: uploadedFileUri || '',
+        documentName: documentName,
         templateId: documentId,
         signatureUri: signatureUriStr,
         signaturePosition,
@@ -333,7 +356,10 @@ export const EditorScreen: React.FC<EditorScreenProps> = ({
     }
 
     return (
-      <View style={styles.pdfWorkspace}>
+      <ScrollView 
+        style={styles.pdfWorkspace}
+        contentContainerStyle={styles.pdfWorkspaceContent}
+      >
         {/* Page indicator */}
         <View style={styles.pageIndicator}>
           <Text style={styles.pageIndicatorText}>
@@ -345,7 +371,9 @@ export const EditorScreen: React.FC<EditorScreenProps> = ({
         <View
           style={[
             styles.pdfContainer,
-            pdfAspectRatio ? { aspectRatio: pdfAspectRatio, flex: undefined } : {}
+            pdfAspectRatio
+              ? { aspectRatio: pdfAspectRatio, flex: undefined }
+              : { height: Dimensions.get('window').height * 0.6, flex: undefined },
           ]}
           onLayout={evt => {
             const { width, height } = evt.nativeEvent.layout;
@@ -415,7 +443,7 @@ export const EditorScreen: React.FC<EditorScreenProps> = ({
             </TouchableOpacity>
           </View>
         )}
-      </View>
+      </ScrollView>
     );
   };
 
@@ -685,8 +713,10 @@ const styles = StyleSheet.create({
   // ─── PDF View ─────────────────────────────────
   pdfWorkspace: {
     flex: 1,
+  },
+  pdfWorkspaceContent: {
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 16,
   },
   pageIndicator: {
     backgroundColor: COLORS.surface,

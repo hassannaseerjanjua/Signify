@@ -3,6 +3,7 @@ import { SignaturePosition } from '../types';
 
 export interface DocumentDraft {
   documentUri: string;
+  documentName?: string;
   templateId: string | null;
   signatureUri: string | null;
   signaturePosition: SignaturePosition | null;
