@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "336226571800",
+    "project_id": "signify-9f89d",
+    "storage_bucket": "signify-9f89d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:336226571800:android:85ba2fe288b7ec3be4156d",
+        "android_client_info": {
+          "package_name": "com.signify"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZ8N6-txUWcS_qX_1sTrHVKh2dLshUsEk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
