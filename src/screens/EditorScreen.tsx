@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Modal,
-  Alert,
   TextInput,
   ActivityIndicator,
   Dimensions,
@@ -72,6 +71,33 @@ export const EditorScreen: React.FC<EditorScreenProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isDrafting, setIsDrafting] = useState(false);
 
+  // Center modal state
+  const [centerModal, setCenterModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: { text: string; onPress?: () => void; style?: 'primary' | 'secondary' | 'danger' }[];
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    buttons: [],
+  });
+
+  const showModal = (
+    title: string,
+    message: string,
+    buttons: { text: string; onPress?: () => void; style?: 'primary' | 'secondary' | 'danger' }[] = [
+      { text: 'OK', style: 'primary' },
+    ],
+  ) => {
+    setCenterModal({ visible: true, title, message, buttons });
+  };
+
+  const hideModal = () => {
+    setCenterModal(prev => ({ ...prev, visible: false }));
+  };
+
   // Load Initial Draft or Saved Signature Template on Mount
   useEffect(() => {
     if (initialDraft) {
@@ -106,7 +132,7 @@ export const EditorScreen: React.FC<EditorScreenProps> = ({
           .catch(err => {
             console.error("Failed to load draft PDF", err);
             setIsLoadingPdf(false);
-            Alert.alert("Draft Error", "Could not load the drafted PDF file.");
+            showModal('Draft Error', 'Could not load the drafted PDF file.');
           });
       } else if (initialDraft.templateId) {
         setEditorMode('pdf');
@@ -172,7 +198,7 @@ export const EditorScreen: React.FC<EditorScreenProps> = ({
     } catch (err: any) {
       if (err?.code !== 'OPERATION_CANCELED') {
         console.error('Document pick error:', err);
-        Alert.alert('Error', 'Failed to open document. Please try again.');
+        showModal('Error', 'Failed to open document. Please try again.');
       }
       setIsLoadingPdf(false);
     }
@@ -202,7 +228,7 @@ export const EditorScreen: React.FC<EditorScreenProps> = ({
 
   const handleSaveDraft = async () => {
     if (!documentId) {
-      Alert.alert('Draft', 'Please upload a document first.');
+      showModal('Draft', 'Please upload a document first.');
       return;
     }
     setIsDrafting(true);
@@ -223,10 +249,12 @@ export const EditorScreen: React.FC<EditorScreenProps> = ({
         signaturePosition,
         timestamp: new Date().toISOString(),
       });
-      Alert.alert('Draft Saved', 'Your progress has been cached locally.');
+      showModal('Draft Saved', 'Your progress has been cached locally.', [
+        { text: 'OK', style: 'primary', onPress: onNavigateBack },
+      ]);
     } catch (err) {
       console.error(err);
-      Alert.alert('Error', 'Could not save draft.');
+      showModal('Error', 'Could not save draft.');
     } finally {
       setIsDrafting(false);
     }
@@ -235,11 +263,11 @@ export const EditorScreen: React.FC<EditorScreenProps> = ({
   // Export: embed signature onto PDF and share
   const handleExport = async () => {
     if (!pdfBytes) {
-      Alert.alert('Export Error', 'No PDF loaded.');
+      showModal('Export Error', 'No PDF loaded.');
       return;
     }
     if (!signatureStrokes || !signaturePosition) {
-      Alert.alert(
+      showModal(
         'Export Error',
         'Please add and place your signature before exporting.',
       );
@@ -298,14 +326,15 @@ export const EditorScreen: React.FC<EditorScreenProps> = ({
         // User cancelled sharing, that's OK
       });
 
-      Alert.alert('Completed', 'Your PDF has been signed and exported!', [
-        { text: 'Done', onPress: onNavigateBack },
+      showModal('Completed', 'Your PDF has been signed and exported! 🎉', [
+        { text: 'Done', style: 'primary', onPress: onNavigateBack },
       ]);
     } catch (err: any) {
       console.error('PDF export error:', err);
-      Alert.alert(
+      showModal(
         'Export Failed',
         err.message || 'An error occurred while signing the PDF.',
+        [{ text: 'OK', style: 'danger' }],
       );
     } finally {
       setIsSaving(false);
@@ -594,6 +623,49 @@ export const EditorScreen: React.FC<EditorScreenProps> = ({
           </View>
         </View>
       </Modal>
+
+      {/* Center alert modal */}
+      <Modal
+        visible={centerModal.visible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={hideModal}
+        statusBarTranslucent
+      >
+        <View style={styles.centerModalOverlay}>
+          <View style={styles.centerModalCard}>
+            <Text style={styles.centerModalTitle}>{centerModal.title}</Text>
+            <Text style={styles.centerModalMessage}>{centerModal.message}</Text>
+            <View style={styles.centerModalButtons}>
+              {centerModal.buttons.map((btn, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.centerModalBtn,
+                    btn.style === 'danger' && styles.centerModalBtnDanger,
+                    btn.style === 'secondary' && styles.centerModalBtnSecondary,
+                    (!btn.style || btn.style === 'primary') && styles.centerModalBtnPrimary,
+                    centerModal.buttons.length > 1 && { flex: 1 },
+                  ]}
+                  onPress={() => {
+                    hideModal();
+                    btn.onPress?.();
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.centerModalBtnText,
+                      btn.style === 'secondary' && styles.centerModalBtnTextSecondary,
+                    ]}
+                  >
+                    {btn.text}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -851,7 +923,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
     elevation: 0,
   },
-  // ─── Modal ────────────────────────────────────
+  // ─── Signature Modal ──────────────────────────
   modalOverlay: {
     flex: 1,
     backgroundColor: COLORS.overlay,
@@ -860,5 +932,74 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
+  },
+  // ─── Center Alert Modal ───────────────────────
+  centerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  centerModalCard: {
+    width: '100%',
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
+    paddingVertical: 28,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  centerModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.textDark,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  centerModalMessage: {
+    fontSize: 14,
+    color: COLORS.textMedium,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  centerModalButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  centerModalBtn: {
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerModalBtnPrimary: {
+    backgroundColor: COLORS.primary,
+    flex: 1,
+  },
+  centerModalBtnDanger: {
+    backgroundColor: '#EF4444',
+    flex: 1,
+  },
+  centerModalBtnSecondary: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    flex: 1,
+  },
+  centerModalBtnText: {
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  centerModalBtnTextSecondary: {
+    color: COLORS.textMedium,
   },
 });

@@ -7,7 +7,6 @@ import {
   ScrollView,
   FlatList,
   Modal,
-  Alert,
 } from 'react-native';
 import { firebaseService } from '../services/firebase';
 import { cacheService, DocumentDraft } from '../services/cache';
@@ -37,6 +36,33 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
     height: 180,
   });
   const [isSigModalOpen, setIsSigModalOpen] = useState(false);
+
+  // Center modal state
+  const [centerModal, setCenterModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: { text: string; onPress?: () => void; style?: 'primary' | 'secondary' | 'danger' }[];
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    buttons: [],
+  });
+
+  const showModal = (
+    title: string,
+    message: string,
+    buttons: { text: string; onPress?: () => void; style?: 'primary' | 'secondary' | 'danger' }[] = [
+      { text: 'OK', style: 'primary' },
+    ],
+  ) => {
+    setCenterModal({ visible: true, title, message, buttons });
+  };
+
+  const hideModal = () => {
+    setCenterModal(prev => ({ ...prev, visible: false }));
+  };
 
   // Load documents, drafts, and signatures on mount
   useEffect(() => {
@@ -91,18 +117,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
     setSavedSignatureStrokes(strokes);
     setSigCanvasDimensions({ width, height });
     setIsSigModalOpen(false);
-    Alert.alert('Success', 'Signature template saved successfully!');
+    showModal('Success', 'Signature template saved successfully! ✅');
   };
 
-  const handleClearSignatureTemplate = async () => {
-    Alert.alert(
+  const handleClearSignatureTemplate = () => {
+    showModal(
       'Remove Signature',
       'Are you sure you want to delete your saved signature template?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancel', style: 'secondary' },
         {
           text: 'Remove',
-          style: 'destructive',
+          style: 'danger',
           onPress: async () => {
             await cacheService.clearSignatureTemplate();
             setSavedSignatureStrokes(null);
@@ -112,15 +138,15 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
     );
   };
 
-  const handleDeleteDraft = async () => {
-    Alert.alert(
+  const handleDeleteDraft = () => {
+    showModal(
       'Discard Draft',
       'Are you sure you want to discard your saved draft?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancel', style: 'secondary' },
         {
           text: 'Discard',
-          style: 'destructive',
+          style: 'danger',
           onPress: async () => {
             await cacheService.clearDraft();
             setActiveDraft(null);
@@ -307,6 +333,49 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               onSave={handleSaveSignatureTemplate}
               onCancel={() => setIsSigModalOpen(false)}
             />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Center alert modal */}
+      <Modal
+        visible={centerModal.visible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={hideModal}
+        statusBarTranslucent
+      >
+        <View style={styles.centerModalOverlay}>
+          <View style={styles.centerModalCard}>
+            <Text style={styles.centerModalTitle}>{centerModal.title}</Text>
+            <Text style={styles.centerModalMessage}>{centerModal.message}</Text>
+            <View style={styles.centerModalButtons}>
+              {centerModal.buttons.map((btn, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.centerModalBtn,
+                    btn.style === 'danger' && styles.centerModalBtnDanger,
+                    btn.style === 'secondary' && styles.centerModalBtnSecondary,
+                    (!btn.style || btn.style === 'primary') && styles.centerModalBtnPrimary,
+                    centerModal.buttons.length > 1 && { flex: 1 },
+                  ]}
+                  onPress={() => {
+                    hideModal();
+                    btn.onPress?.();
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.centerModalBtnText,
+                      btn.style === 'secondary' && styles.centerModalBtnTextSecondary,
+                    ]}
+                  >
+                    {btn.text}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
       </Modal>
@@ -592,5 +661,74 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
+  },
+  // ─── Center Alert Modal ───────────────────────
+  centerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  centerModalCard: {
+    width: '100%',
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
+    paddingVertical: 28,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  centerModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.textDark,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  centerModalMessage: {
+    fontSize: 14,
+    color: COLORS.textMedium,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  centerModalButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  centerModalBtn: {
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerModalBtnPrimary: {
+    backgroundColor: COLORS.primary,
+    flex: 1,
+  },
+  centerModalBtnDanger: {
+    backgroundColor: '#EF4444',
+    flex: 1,
+  },
+  centerModalBtnSecondary: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    flex: 1,
+  },
+  centerModalBtnText: {
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  centerModalBtnTextSecondary: {
+    color: COLORS.textMedium,
   },
 });

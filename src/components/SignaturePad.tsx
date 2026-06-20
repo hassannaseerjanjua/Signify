@@ -155,7 +155,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
         </TouchableOpacity> */}
 
         <TouchableOpacity style={styles.btnPrimary} onPress={handleSave}>
-          <Text style={styles.btnTextPrimary}>Save Signature</Text>
+          <Text style={styles.btnTextPrimary}>Sign</Text>
         </TouchableOpacity>
       </View>
     </View>
